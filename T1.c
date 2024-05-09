@@ -1,32 +1,3 @@
-// Here are the rules for the election process:
-// 1. There are C candidates (numbered from 1 to C), and V voters.
-// 2. The election process consists of up to 2 rounds. 
-// All candidates compete in the first round. 
-// If a candidate receives more than 50% of the votes, he wins, otherwise another round takes place,
-// in which only the top 2 candidates compete for the presidency,
-// the candidate who receives more votes than his opponent wins and becomes the new president.
-// 3. The voters' preferences are the same in both rounds, 
-// and each voter must vote exactly once in each round for a currently competing candidate according to his preferences.
-// Given the preferences lists, you need to write a program to announce which candidate will win and in which round.
-
-
-// You must use files so firstly generate by the code file which contains the voters' preferences, 
-// and the format of the file must be number of candidates in the first line and number of voters in the second line, 
-// and then followed by voters' preferences equal to number of voters.
-
-
-// Note: when running the program the file must not be loaded by one process but every running process should loads its part.
-
-
-// Run Steps you must follow: When run the program prompt the user to generate file like above of voter's preferences or
-// to calculate the result and if the user choose the second option enter the filename as input.
-
-
-// The Output: Print to the console the steps happening in every process and print which candidate will win the elections
-// and in which round. And if there are 2 rounds identity that also and show the percentage of every candidate per each round.
-
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -104,9 +75,20 @@ int main(int argc, char *argv[])
     memset(pref, 0, sizeof(pref));
     // make each process read its part of the file
     int p = V / size;
-    int start = rank * p + 2;
-    int end = (rank == size - 1) ? V + 2 : start + p ;
-
+    int start = 0;
+    int end = 0;
+    if(p == 0){ 
+        if(rank > V - 1){
+            start = 0;
+            end = 0;
+        }else{
+            start = rank + 2;
+            end = rank + 3;
+        }
+    }else{
+        start = rank * p + 2;
+        end = (rank == size - 1) ? V + 2 : start + p ;
+    }
 
     fseek(file, 0, SEEK_SET); // go to the beginning of the file
     for(int i = 0; i < V + 2; i++){
@@ -124,7 +106,7 @@ int main(int argc, char *argv[])
             for(int j = 0; j < C; j++){
                 fscanf(file, "%d", &pref[i-2][j]);
             }
-        }else{
+        }else{ // skip the preferences of the voters that are not in the range of the process
             break;
         }
     }
@@ -159,9 +141,6 @@ int main(int argc, char *argv[])
         getVotesR2(rank, start, end, C, V, votes, Pp, maxIndex+1, secondMaxIndex+1);
         MPI_Reduce(votes, totalVotes, C, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
         if(rank == 0){
-            for(int i = 0; i < C; i++){
-                printf ("Process %d: Candidate %d has %d votes\n", rank, i+1, totalVotes[i]);
-            }
             int maxVotes = 0, maxIndex = 0;
             for(int i = 0; i < C; i++){
                 if(totalVotes[i] > maxVotes){
