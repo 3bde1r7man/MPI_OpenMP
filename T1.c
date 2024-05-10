@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <mpi.h>
 
@@ -36,7 +35,7 @@ int main(int argc, char *argv[])
         int choice;
         scanf("%d", &choice);
         if(choice == 1){
-            strcat(filename, "voters.txt");
+            strcpy(filename, "voters.txt");
             FILE *file = fopen("voters.txt", "w");
             printf("Enter number of candidates: ");
             scanf("%d", &C);
@@ -59,7 +58,6 @@ int main(int argc, char *argv[])
             FILE *file = fopen(filename, "r");
             if(file == NULL){
                 printf("File not found\n");
-                MPI_Finalize();
                 return 0;
             }
             fclose(file);
@@ -111,7 +109,19 @@ int main(int argc, char *argv[])
         }
     }
     fclose(file);
+
+    // print the preferences of the voters in each process
+    for(int i = start; i < end; i++){
+        for(int j = 0; j < C; j++){
+            printf("Process %d: Voter %d preference %d: %d\n", rank, i-1, j+1, pref[i - 2][j]);
+        }
+    }
+    
     getVotesR1(rank, start, end, C, V, votes, Pp); // get votes for the first round
+
+    for(int i = 0; i < C; i++){
+        printf("Process %d: First Round Candidate %d votes: %d\n", rank, i+1, votes[i]);
+    }
 
     int totalVotes[C];
     MPI_Reduce(votes, totalVotes, C, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -133,12 +143,19 @@ int main(int argc, char *argv[])
         }else{
             printf("Candidate %d and Candidate %d will compete in the second round\n", maxIndex+1, secondMaxIndex+1);
         }
+        // print the percentage of each candidate in the first round
+        for(int i = 0; i < C; i++){
+            printf("Candidate %d percentage in First Round: %.2f%%\n", i+1, (double) totalVotes[i] / V * 100);
+        }
     }
     MPI_Bcast(&maxIndex, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&secondMaxIndex, 1, MPI_INT, 0, MPI_COMM_WORLD);
     if(!(maxVotes > (double) V/2)){
         memset(votes, 0, sizeof(votes));
         getVotesR2(rank, start, end, C, V, votes, Pp, maxIndex+1, secondMaxIndex+1);
+        for(int i = 0; i < C; i++){
+            printf("Process %d: Second Round Candidate %d votes: %d\n", rank, i+1, votes[i]);
+        }
         MPI_Reduce(votes, totalVotes, C, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
         if(rank == 0){
             int maxVotes = 0, maxIndex = 0;
@@ -149,6 +166,10 @@ int main(int argc, char *argv[])
                 }
             }
             printf("Candidate %d wins the elections in the second round with %d votes\n", maxIndex+1, maxVotes);
+            // print the percentage of each candidate in the second round
+            for(int i = 0; i < C; i++){
+                printf("Candidate %d percentage in Second Round: %.2f%%\n", i+1, (double) totalVotes[i] / V * 100);
+            }
         }
     }
     MPI_Finalize();
